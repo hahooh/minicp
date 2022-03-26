@@ -30,7 +30,7 @@ impl Config {
                 to = arg;
             }
         }
-        if num_arg > 2 {
+        if num_arg > 3 {
             let to_path = path::Path::new(&to);
             if !to_path.is_dir() {
                 return Result::Err(format!("destination is not a dir"));
@@ -55,25 +55,25 @@ fn dump(from: &mut fs::File, to: &mut fs::File) -> Result<usize, String> {
 
 fn get_to_file(from: &str, to: &str) -> Result<fs::File, String> {
     let to_path = path::Path::new(&to);
-    if to_path.is_file() {
-        return match fs::File::create(to) {
+    if to_path.is_dir() {
+        let from_path = path::Path::new(&from);
+        let from_file_name = match from_path.file_name() {
+            Some(n) => match n.to_str() {
+                Some(name) => name,
+                None => return Result::Err("invalid file name".to_string()),
+            },
+            None => return Result::Err("file name not found".to_string()),
+        };
+
+        return match fs::File::create([&to[..], &from_file_name[..]].concat()) {
             Ok(f) => Result::Ok(f),
-            Err(err) => Result::Err(format!("cannot create file {}, err {}", to, err)),
+            Err(err) => Result::Err(format!("cannot create file {}", err)),
         };
     }
 
-    let from_path = path::Path::new(&from);
-    let from_file_name = match from_path.file_name() {
-        Some(n) => match n.to_str() {
-            Some(name) => name,
-            None => return Result::Err("invalid file name".to_string()),
-        },
-        None => return Result::Err("file name not found".to_string()),
-    };
-
-    match fs::File::create([&to[..], &from_file_name[..]].concat()) {
+    match fs::File::create(to) {
         Ok(f) => Result::Ok(f),
-        Err(err) => Result::Err(format!("cannot create file {}", err)),
+        Err(err) => Result::Err(format!("cannot create file {}, err {}", to, err)),
     }
 }
 
@@ -107,8 +107,8 @@ fn mv(config: Config) -> Result<u8, String> {
 fn main() {
     let args = env::args();
     let num_args = args.len();
-    if num_args < 2 {
-        println!("min num args is < 2");
+    if num_args < 3 {
+        println!("{}", "min num args is < 2".magenta());
         std::process::exit(1);
     }
 
